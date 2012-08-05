@@ -1,0 +1,101 @@
+#!/bin/sh
+#-*- scheme -*-
+#
+#    Copyright (C) 2012 Greg Benison
+#   
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#   
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#   
+#    You should have received a copy of the GNU General Public License
+#    along with this program; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#  
+
+export GUILE_LOAD_PATH=$GUILE_LOAD_PATH:`pwd`;
+export LTDL_LIBRARY_PATH=$LTDL_LIBRARY_PATH:`pwd`;
+export GUILE_WARN_DEPRECATED=no;
+exec guile --listen -s $0 $@ 2>>guile-error.log
+
+!#
+
+(use-modules (srfi srfi-1)
+	     (sxml simple)
+	     (ice-9 regex)
+	     (web request)
+	     (web server))
+
+(define image-dir "images")
+
+(define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
+
+(define (is-image-file? fname)
+  (any
+   (lambda (suffix)
+     (string-match (string-append "." suffix) fname))
+   image-suffixes))
+
+(define (all-files dirname)
+  (let ((handle (opendir dirname)))
+    (let loop ((result '()))
+      (let ((next (readdir handle)))
+	(if (eof-object? next)
+	    result
+	    (loop (cons next result)))))))
+
+(define (is-image-folder? dirname)
+  (any is-image-file?
+       (map (prepend-path (list dirname))(all-files dirname))))
+
+(define (prepend-path path)
+  (lambda (fname)
+    (string-join (append path (list fname)) "/")))
+
+(define (all-image-folders)
+  (filter
+   is-image-folder?
+   (filter file-is-directory?
+	   (map (prepend-path (list image-dir))(all-files image-dir)))))
+
+(define (sxml->text sxml)
+  (with-output-to-string
+    (lambda () (sxml->xml sxml))))
+
+(define (as-html-reply sxml)
+  (values '((content-type . (text/html)))
+	  (sxml->text sxml)))
+
+(define (with-standard-header body)
+  `(html
+    (head (title "HazelPhoto 0.1")
+	  (link (@ (rel "stylesheet")(type "text/css")(href "style.css"))))
+    ,body))
+
+(define (canonical-name name)
+  (string-map
+   (lambda (c)(if (char-alphabetic? c) c #\_))
+   name))
+
+;; FIXME need to add thumbnail
+(define (image-folder->li folder-name)
+  `(li
+    (a (@ (href ,(canonical-name folder-name))) ,folder-name)))
+
+(define (landing-page)
+  (as-html-reply
+   (with-standard-header
+    `(body
+      (ul
+       ,(map image-folder->li (all-image-folders)))))))
+
+;; FIXME parse actual requests.
+(define (hazel-photo-handler request request-body)
+ (landing-page))
+
+(run-server hazel-photo-handler 'http)
