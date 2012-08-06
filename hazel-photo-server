@@ -29,13 +29,14 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	     (sxml simple)
 	     (ice-9 regex)
 	     (web request)
+	     (web uri)
 	     (web server))
 
 (define image-dir "images")
 
 (define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
 
-(define (is-image-file? fname)
+(define (image-file? fname)
   (any
    (lambda (suffix)
      (string-match (string-append "." suffix) fname))
@@ -50,7 +51,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	    (loop (cons next result)))))))
 
 (define (is-image-folder? dirname)
-  (any is-image-file?
+  (any image-file?
        (map (prepend-path (list dirname))(all-files dirname))))
 
 (define (prepend-path path)
@@ -63,9 +64,52 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
    (filter file-is-directory?
 	   (map (prepend-path (list image-dir))(all-files image-dir)))))
 
+;; First element of 'path' must be a canonical name matching the actual
+;; file system name of an image folder.
+(define (lookup-image-folder path)
+  (find
+   (lambda (folder)
+     (equal? (car path) (canonical-name (basename folder))))
+   (all-image-folders)))
+
 (define (sxml->text sxml)
   (with-output-to-string
     (lambda () (sxml->xml sxml))))
+
+(define (folder-not-found-page path)
+  (as-html-reply
+   (with-standard-header
+    `(body (p "Folder " ,path " does not exist.  Try one of these:")
+	   (ul ,(map image-folder->li (all-image-folders)))))))
+
+(define (folder-page path)
+  (let ((folder-path (lookup-image-folder path)))
+    (define (image->li image-fname)
+      (let ((full-path (path->fname (list folder-path image-fname))))
+	`(li (a (@ (href ,(uri-encode full-path)))
+		(img (@ (src ,(uri-encode full-path))))))))
+    (if folder-path
+	(as-html-reply
+	 (with-standard-header
+	  `(body
+	    (h2 ,(car path))
+	    (ul ,(map image->li
+		      (filter image-file?
+			      (all-files folder-path)))))))
+	(folder-not-found-page path))))
+
+(define (unknown-request)
+  (as-html-reply
+   (with-standard-header
+    `(body (p "Can't get thar from here.")
+	   (a (@ (href "/")) "HOME")))))
+
+(define (path->fname path)
+  (string-join path "/"))
+
+(define (request-path-components request)
+  (split-and-decode-uri-path (uri-path (request-uri request))))
+
 
 (define (as-html-reply sxml)
   (values '((content-type . (text/html)))
@@ -98,8 +142,13 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
       (ul
        ,(map image-folder->li (all-image-folders)))))))
 
-;; FIXME parse actual requests.
 (define (hazel-photo-handler request request-body)
- (landing-page))
+  (let ((path (request-path-components request))
+	(fname (uri-decode (uri-path (request-uri request)))))
+    (cond
+     ((null? path)             (landing-page))
+     ((equal? 1 (length path)) (folder-page path))
+     ((equal? 2 (length path)) (image-page path))
+     (else                     (unknown-request)))))
 
 (run-server hazel-photo-handler 'http)
