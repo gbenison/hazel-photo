@@ -77,15 +77,19 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	  (link (@ (rel "stylesheet")(type "text/css")(href "style.css"))))
     ,body))
 
+(define (char-alphanumeric? c)
+  (or (char-alphabetic? c)
+      (char-numeric? c)))
+
 (define (canonical-name name)
   (string-map
-   (lambda (c)(if (char-alphabetic? c) c #\_))
+   (lambda (c)(if (char-alphanumeric? c) c #\_))
    name))
 
 ;; FIXME need to add thumbnail
 (define (image-folder->li folder-name)
   `(li
-    (a (@ (href ,(canonical-name folder-name))) ,folder-name)))
+    (a (@ (href ,(canonical-name (basename folder-name)))) ,folder-name)))
 
 (define (landing-page)
   (as-html-reply
