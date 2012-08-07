@@ -33,6 +33,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	     (web server))
 
 (define image-dir "images")
+(define image-server-base-url "http://localhost:8081/")
 
 (define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
 
@@ -85,9 +86,10 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 (define (folder-page path)
   (let ((folder-path (lookup-image-folder path)))
     (define (image->li image-fname)
-      (let ((full-path (path->fname (list folder-path image-fname))))
-	`(li (a (@ (href ,(uri-encode full-path)))
-		(img (@ (src ,(uri-encode full-path))))))))
+      (let* ((full-path (path->uri (list (basename folder-path) image-fname)))
+	     (image-url (string-append image-server-base-url full-path)))
+	`(li (a (@ (href ,image-url))
+		(img (@ (src ,image-url)))))))
     (if folder-path
 	(as-html-reply
 	 (with-standard-header
@@ -106,6 +108,9 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 
 (define (path->fname path)
   (string-join path "/"))
+
+(define (path->uri path)
+  (string-join (map uri-encode path) "/"))
 
 (define (request-path-components request)
   (split-and-decode-uri-path (uri-path (request-uri request))))
