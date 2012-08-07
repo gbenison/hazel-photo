@@ -28,6 +28,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 (use-modules (srfi srfi-1)
 	     (sxml simple)
 	     (ice-9 regex)
+	     (ice-9 pretty-print)
 	     (web request)
 	     (web uri)
 	     (web server))
@@ -60,18 +61,18 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
     (string-join (append path (list fname)) "/")))
 
 (define (all-image-folders)
-  (filter
-   is-image-folder?
-   (filter file-is-directory?
-	   (map (prepend-path (list image-dir))(all-files image-dir)))))
+  (define (is-image-folder-name? fname)
+    (let ((full-path (string-append image-dir "/" fname)))
+      (and (file-exists?       full-path)
+	   (file-is-directory? full-path)
+	   (is-image-folder?   full-path))))
+  (filter is-image-folder-name? (all-files image-dir)))
 
-;; First element of 'path' must be a canonical name matching the actual
-;; file system name of an image folder.
-(define (lookup-image-folder path)
-  (find
-   (lambda (folder)
-     (equal? (car path) (canonical-name (basename folder))))
-   (all-image-folders)))
+(define (lookup-image-folder uri-path)
+  (let ((fname (uri-path->path (cons image-dir uri-path))))
+    (and (file-exists? fname)
+	 (file-is-directory? fname)
+	 fname)))
 
 (define (sxml->text sxml)
   (with-output-to-string
@@ -83,8 +84,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
     `(body (p "Folder " ,path " does not exist.  Try one of these:")
 	   (ul ,(map image-folder->li (all-image-folders)))))))
 
-(define (folder-page path)
-  (let ((folder-path (lookup-image-folder path)))
+(define (folder-page uri-path)
+  (let ((folder-path (lookup-image-folder uri-path)))
     (define (image->li image-fname)
       (let* ((full-path (path->uri (list (basename folder-path) image-fname)))
 	     (image-url (string-append image-server-base-url full-path)))
@@ -94,11 +95,11 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	(as-html-reply
 	 (with-standard-header
 	  `(body
-	    (h2 ,(car path))
+	    (h2 ,(car uri-path))
 	    (ul ,(map image->li
 		      (filter image-file?
 			      (all-files folder-path)))))))
-	(folder-not-found-page path))))
+	(folder-not-found-page uri-path))))
 
 (define (unknown-request)
   (as-html-reply
@@ -111,6 +112,9 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 
 (define (path->uri path)
   (string-join (map uri-encode path) "/"))
+
+(define (uri-path->path uri-path)
+  (string-join (map uri-decode uri-path) "/"))
 
 (define (request-path-components request)
   (split-and-decode-uri-path (uri-path (request-uri request))))
@@ -130,15 +134,10 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   (or (char-alphabetic? c)
       (char-numeric? c)))
 
-(define (canonical-name name)
-  (string-map
-   (lambda (c)(if (char-alphanumeric? c) c #\_))
-   name))
-
 ;; FIXME need to add thumbnail
 (define (image-folder->li folder-name)
   `(li
-    (a (@ (href ,(canonical-name (basename folder-name)))) ,folder-name)))
+    (a (@ (href ,(uri-encode (basename folder-name)))) ,folder-name)))
 
 (define (landing-page)
   (as-html-reply
@@ -147,13 +146,21 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
       (ul
        ,(map image-folder->li (all-image-folders)))))))
 
+(define (with-error-handler thunk)
+  (catch #t thunk
+    (lambda args
+      (values '((content-type . (text/plain)))
+	      (with-output-to-string
+		(lambda () (pretty-print args)))))))
+
 (define (hazel-photo-handler request request-body)
-  (let ((path (request-path-components request))
-	(fname (uri-decode (uri-path (request-uri request)))))
-    (cond
-     ((null? path)             (landing-page))
-     ((equal? 1 (length path)) (folder-page path))
-     ((equal? 2 (length path)) (image-page path))
-     (else                     (unknown-request)))))
+  (with-error-handler
+   (lambda ()
+     (let ((uri-path (request-path-components request)))
+       (cond
+	((null? uri-path)             (landing-page))
+	((equal? 1 (length uri-path)) (folder-page uri-path))
+	((equal? 2 (length uri-path)) (image-page  uri-path))
+	(else                         (unknown-request)))))))
 
 (run-server hazel-photo-handler 'http)
