@@ -35,6 +35,9 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 
 (define image-dir "images")
 (define image-server-base-url "http://localhost:8081/")
+(define thumbnail-dir "thumbnails")
+(define thumbnail-cmd "/usr/bin/convert")
+(define thumbnail-args '("-resize" "80x80"))
 
 (define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
 
@@ -43,6 +46,29 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
    (lambda (suffix)
      (string-match (string-append "." suffix) fname))
    image-suffixes))
+
+(define (replace-extension fname new-ext)
+  (let ((my-match (string-match "[.][^./]*$" fname)))
+    (string-append
+     (if my-match (match:prefix my-match) fname)
+     "." new-ext)))
+
+(define (ensure-thumbnail folder image-fname)
+  (let ((image-full-path     (string-join `(,image-dir ,folder ,image-fname) "/"))
+	(thumbnail-full-path (string-join `(,thumbnail-dir
+					    ,folder
+					    ,(replace-extension image-fname "jpg"))
+					  "/")))
+    ;; FIXME vulnerable to a regular file existing with this name.
+    (if (not (and (file-exists? (dirname thumbnail-full-path))
+		  (file-is-directory? (dirname thumbnail-full-path))))
+	(mkdir (dirname thumbnail-full-path)))
+    (if (not (file-exists? thumbnail-full-path))
+	(apply system*
+	       (append (cons thumbnail-cmd
+			     thumbnail-args)
+		       (list image-full-path
+			     thumbnail-full-path))))))
 
 (define (all-files dirname)
   (let ((handle (opendir dirname)))
