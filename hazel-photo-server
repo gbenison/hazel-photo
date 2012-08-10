@@ -33,13 +33,14 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	     (web uri)
 	     (web server))
 
-(define image-dir "images")
+(define image-dir "media/images")
 (define image-server-base-url "http://localhost:8081/")
-(define thumbnail-dir "thumbnails")
+(define thumbnail-dir "media/thumbnails")
 (define thumbnail-cmd "/usr/bin/convert")
 (define thumbnail-args '("-resize" "80x80"))
 
 (define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
+(define standard-thumbnail-extension "jpg")
 
 (define (image-file? fname)
   (any
@@ -53,11 +54,22 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
      (if my-match (match:prefix my-match) fname)
      "." new-ext)))
 
+(define (thumbnail-uri folder image-fname)
+  (string-append
+   image-server-base-url
+   (path->uri (list "thumbnails"
+		    (basename folder)
+		    (replace-extension image-fname
+				       standard-thumbnail-extension)))))
+
 (define (ensure-thumbnail folder image-fname)
-  (let ((image-full-path     (string-join `(,image-dir ,folder ,image-fname) "/"))
+  (let ((image-full-path     (string-join
+			      `(,image-dir ,folder ,image-fname) "/"))
 	(thumbnail-full-path (string-join `(,thumbnail-dir
 					    ,folder
-					    ,(replace-extension image-fname "jpg"))
+					    ,(replace-extension
+					      image-fname
+					      standard-thumbnail-extension))
 					  "/")))
     ;; FIXME vulnerable to a regular file existing with this name.
     (if (not (and (file-exists? (dirname thumbnail-full-path))
@@ -113,7 +125,9 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 (define (folder-page uri-path)
   (let ((folder-path (lookup-image-folder uri-path)))
     (define (image->li image-fname)
-      (let* ((full-path (path->uri (list (basename folder-path) image-fname)))
+      (let* ((full-path (path->uri (list
+				    "images"
+				    (basename folder-path) image-fname)))
 	     (image-url (string-append image-server-base-url full-path)))
 	`(li (a (@ (href ,image-url))
 		(img (@ (src ,image-url)))))))
@@ -160,10 +174,20 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   (or (char-alphabetic? c)
       (char-numeric? c)))
 
+(define (all-image-names folder-name)
+  (map basename
+       (filter image-file?
+	       (all-files (string-append image-dir "/" folder-name)))))
+
 ;; FIXME need to add thumbnail
 (define (image-folder->li folder-name)
+  (define (make-thumbnail image-name)
+    (ensure-thumbnail folder-name image-name)
+    `(li (img (@ (src ,(thumbnail-uri folder-name image-name))))))
   `(li
-    (a (@ (href ,(uri-encode (basename folder-name)))) ,folder-name)))
+    (a (@ (href ,(uri-encode (basename folder-name)))) ,folder-name)
+    (ul
+     ,(map make-thumbnail (all-image-names folder-name)))))
 
 (define (landing-page)
   (as-html-reply
