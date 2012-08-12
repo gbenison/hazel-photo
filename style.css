@@ -1,3 +1,35 @@
 .selected {
    border:      2px red solid;
 }
+
+.expander {
+    clear:      both;
+}
+
+.folder-link {
+    clear:  both;
+}
+
+.folder-link:hover {
+    background:      #aaaaaa;
+}
+
+.folder-link a {
+    text-decoration: none;
+    text-transform:  uppercase;
+    font-family:     helvetica sans;
+    display:         block;
+}
+
+.folder-link ul {
+    list-style-type:  none;
+}
+
+.folder-link ul > li {
+    float:  left;
+    margin:  5px;
+}
+
+.folder-list {
+    list-style-type:  none;
+}

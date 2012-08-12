@@ -175,14 +175,18 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   (values '((content-type . (text/html)))
 	  (sxml->text sxml)))
 
-(define (with-standard-header body)
+(define (with-standard-header . body-elements)
   `(html
     (head (title "HazelPhoto 0.1")
 	  (link (@ (rel "stylesheet")
 		   (type "text/css")
 		   (href ,(string-append image-server-base-url
 					 "style.css")))))
-    ,body))
+    (body
+     (div (@ (id "nav"))
+	  (a (@ (href "/"))
+	     "HazelPhoto 0.1"))
+     ,@body-elements)))
 
 (define (char-alphanumeric? c)
   (or (char-alphabetic? c)
@@ -210,15 +214,18 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	  (all-image-names folder-name))))
 
 (define (image-folder->li folder-name)
-  `(li
-    (a (@ (href ,(uri-encode (basename folder-name)))) ,folder-name)
-    ,(folder->thumbnail-ul folder-name)))
+  `(li (@ (class "folder-link"))
+       (a (@ (href ,(uri-encode (basename folder-name))))
+	  (div
+	   (h2 ,folder-name)
+	   ,(folder->thumbnail-ul folder-name)
+	   (div (@ (class "expander")))))))
 
 (define (landing-page)
   (as-html-reply
    (with-standard-header
     `(body
-      (ul
+      (ul (@ (class "folder-list"))
        ,(map image-folder->li (all-image-folders)))))))
 
 (define (with-error-handler thunk)
