@@ -82,6 +82,10 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 		       (list image-full-path
 			     thumbnail-full-path))))))
 
+(define (make-thumbnail folder-name image-name)
+  (ensure-thumbnail folder-name image-name)
+  `(img (@ (src ,(thumbnail-uri folder-name image-name)))))
+
 (define (all-files dirname)
   (let ((handle (opendir dirname)))
     (let loop ((result '()))
@@ -127,13 +131,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	 (selected-image-name  (and (> (length uri-path) 1)
 				    (uri-decode (second uri-path))))
 	 (folder-path (string-append image-dir "/" folder-name)))
-    (define (image->li image-fname)
-      (let* ((full-path (path->uri (list
-				    "images"
-				    (basename folder-path) image-fname)))
-	     (image-url (string-append image-server-base-url full-path)))
-	`(li (a (@ (href ,image-url))
-		(img (@ (src ,image-url)))))))
+
     (if (not (and (file-exists? folder-path)
 		  (file-is-directory? folder-path)))
 	(folder-not-found-page uri-path)
@@ -148,7 +146,11 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 					    "selected"
 					    "")))
 			     ,(make-thumbnail folder-name image-name))))
-		   (all-image-names folder-name)))))))))
+		   (all-image-names folder-name)))
+	    (div (@ (class "featured"))
+		 ,(if (string? selected-image-name)
+		      (img-element-for folder-name selected-image-name)
+		      '(span "Select an image")))))))))
 
 (define (unknown-request)
   (as-html-reply
@@ -191,9 +193,15 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
        (filter image-file?
 	       (all-files (string-append image-dir "/" folder-name)))))
 
-(define (make-thumbnail folder-name image-name)
-  (ensure-thumbnail folder-name image-name)
-  `(img (@ (src ,(thumbnail-uri folder-name image-name)))))
+(define (image-uri folder-name image-name)
+  (string-append
+   image-server-base-url
+   (path->uri (list "images"
+		    (basename folder-name)
+		    (basename image-name)))))
+
+(define (img-element-for folder-name image-name)
+  `(img (@ (src ,(image-uri folder-name image-name)))))
 
 (define (folder->thumbnail-ul folder-name)
   `(ul
