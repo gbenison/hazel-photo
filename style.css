@@ -1,5 +1,6 @@
 .selected {
-   border:      2px red solid;
+/*   border:      4px red solid; */
+    background:  #ffaaaa;
 }
 
 .expander {
@@ -21,15 +22,36 @@
     display:         block;
 }
 
-.folder-link ul {
+ul {
     list-style-type:  none;
 }
 
-.folder-link ul > li {
-    float:  left;
+ul.gallery {
+    width:     100%;
+    overflow:  auto;
+}
+
+ul.gallery > li {
+    float:   left;
     margin:  5px;
+}
+
+ul.gallery > li > a {
+    padding: 6px;
+    display: block;
 }
 
 .folder-list {
     list-style-type:  none;
+}
+
+div.featured {
+    margin-top:  0.5in;
+}
+
+.featured img {
+    display:   block;
+    margin:    auto;
+    padding:   8px;
+    border:    4px black solid;
 }

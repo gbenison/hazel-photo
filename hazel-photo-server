@@ -139,7 +139,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	 (with-standard-header
 	  `(body
 	    (h2 ,(car uri-path))
-	    (ul
+	    (ul (@ (class "thumbnails gallery"))
 	     ,(map (lambda (image-name)
 		     `(li (a (@ (href ,(path->uri (list "" folder-name image-name)))
 				(class ,(if (equal? image-name selected-image-name)
@@ -208,7 +208,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   `(img (@ (src ,(image-uri folder-name image-name)))))
 
 (define (folder->thumbnail-ul folder-name)
-  `(ul
+  `(ul (@ (class "thumbnails gallery"))
     ,(map (lambda (image-name)
 	    `(li ,(make-thumbnail folder-name image-name)))
 	  (all-image-names folder-name))))
