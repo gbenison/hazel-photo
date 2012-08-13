@@ -54,4 +54,5 @@ div.featured {
     margin:    auto;
     padding:   8px;
     border:    4px black solid;
+    max-width: 80%;
 }
