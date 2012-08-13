@@ -11,6 +11,14 @@
     clear:  both;
 }
 
+.folder-link ul.thumbnails {
+    display: none;
+}
+
+.folder-link h2:hover ~ ul.thumbnails {
+    display:  block;
+}
+
 .folder-link:hover {
     background:      #aaaaaa;
 }
