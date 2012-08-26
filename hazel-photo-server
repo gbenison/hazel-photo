@@ -35,8 +35,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	     (web server))
 
 (define image-server-base-url "http://localhost:8081/")
+(define media-dir     "media")
 (define image-dir     "media/images")
-(define thumbnail-dir "media/thumbnails")
 (define feature-dir   "media/featured")
 (define derivative-cmd "/usr/bin/convert")
 
@@ -89,40 +89,44 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 		(car elems)
 		(cdr elems)))))
 
-(define (thumbnail-uri folder image-fname)
-  (string-append
-   image-server-base-url
-   (path->uri (list "thumbnails"
-		    (basename folder)
-		    (replace-extension image-fname
-				       standard-derivative-extension)))))
+(define (derivative-uri type)
+  (lambda (folder image-fname)
+    (string-append
+     image-server-base-url
+     (path->uri (list type
+		      (basename folder)
+		      (replace-extension image-fname
+					 standard-derivative-extension))))))
 
 (define (ensure-derivative-image dest-dir convert-args)
-  (lambda (folder image-fname)
-    (let ((image-full-path     (string-join
-				`(,image-dir ,folder ,image-fname) "/"))
-	  (derivative-full-path (string-join `(,dest-dir
-					       ,folder
-					       ,(replace-extension
-						 image-fname
-						 standard-derivative-extension))
-					     "/")))
-      ;; FIXME vulnerable to a regular file existing with this name.
-      (if (not (and (file-exists? (dirname derivative-full-path))
-		    (file-is-directory? (dirname derivative-full-path))))
-	  (mkdir (dirname derivative-full-path)))
-      (if (not (file-exists? derivative-full-path))
-	  (apply system*
-		 (append (cons derivative-cmd
-			       convert-args)
-			 (list image-full-path
-			       derivative-full-path)))))))
+  (let ((->uri (derivative-uri dest-dir)))
+    (lambda (folder image-fname)
+      (let ((image-full-path     (string-join
+				  `(,image-dir ,folder ,image-fname) "/"))
+	    (derivative-full-path (string-join `(,media-dir
+						 ,dest-dir
+						 ,folder
+						 ,(replace-extension
+						   image-fname
+						   standard-derivative-extension))
+					       "/")))
+	;; FIXME vulnerable to a regular file existing with this name.
+	(if (not (and (file-exists? (dirname derivative-full-path))
+		      (file-is-directory? (dirname derivative-full-path))))
+	    (mkdir (dirname derivative-full-path)))
+	(if (not (file-exists? derivative-full-path))
+	    (apply system*
+		   (append (cons derivative-cmd
+				 convert-args)
+			   (list image-full-path
+				 derivative-full-path))))
+	(->uri folder image-fname)))))
 
-(define ensure-thumbnail (ensure-derivative-image thumbnail-dir '("-resize" "80x80")))
+(define ensure-thumbnail (ensure-derivative-image "thumbnails" '("-resize" "80x80")))
+(define ensure-feature   (ensure-derivative-image "feature" '("-resize" "600x400>")))
 
 (define (make-thumbnail folder-name image-name)
-  (ensure-thumbnail folder-name image-name)
-  `(img (@ (src ,(thumbnail-uri folder-name image-name)))))
+  `(img (@ (src ,(ensure-thumbnail folder-name image-name)))))
 
 (define (all-files dirname)
   (let ((handle (opendir dirname)))
@@ -260,7 +264,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 		    (basename image-name)))))
 
 (define (img-element-for folder-name image-name)
-  `(img (@ (src ,(image-uri folder-name image-name)))))
+  `(a (@ (href ,(image-uri folder-name image-name)))
+    (img (@ (src ,(ensure-feature folder-name image-name))))))
 
 (define (folder->thumbnail-ul folder-name)
   `(ul (@ (class "thumbnails gallery"))
