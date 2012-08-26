@@ -55,12 +55,19 @@ ul.gallery > li > a {
 
 div.featured {
     margin-top:  0.5in;
+    text-align:  center;
+}
+
+div.featured a {
+    padding:     10px;
+    font-weight: bold;
+    font-size:   10em;
+    text-decoration: none;
+    vertical-align: top;
 }
 
 .featured img {
-    display:   block;
-    margin:    auto;
     padding:   8px;
     border:    4px black solid;
-    max-width: 80%;
+    max-width: 50%; 
 }
