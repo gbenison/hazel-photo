@@ -34,14 +34,14 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	     (web uri)
 	     (web server))
 
-(define image-dir "media/images")
 (define image-server-base-url "http://localhost:8081/")
+(define image-dir     "media/images")
 (define thumbnail-dir "media/thumbnails")
-(define thumbnail-cmd "/usr/bin/convert")
-(define thumbnail-args '("-resize" "80x80"))
+(define feature-dir   "media/featured")
+(define derivative-cmd "/usr/bin/convert")
 
 (define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
-(define standard-thumbnail-extension "jpg")
+(define standard-derivative-extension "jpg")
 
 (define (image-file? fname)
   (any
@@ -95,27 +95,30 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
    (path->uri (list "thumbnails"
 		    (basename folder)
 		    (replace-extension image-fname
-				       standard-thumbnail-extension)))))
+				       standard-derivative-extension)))))
 
-(define (ensure-thumbnail folder image-fname)
-  (let ((image-full-path     (string-join
-			      `(,image-dir ,folder ,image-fname) "/"))
-	(thumbnail-full-path (string-join `(,thumbnail-dir
-					    ,folder
-					    ,(replace-extension
-					      image-fname
-					      standard-thumbnail-extension))
-					  "/")))
-    ;; FIXME vulnerable to a regular file existing with this name.
-    (if (not (and (file-exists? (dirname thumbnail-full-path))
-		  (file-is-directory? (dirname thumbnail-full-path))))
-	(mkdir (dirname thumbnail-full-path)))
-    (if (not (file-exists? thumbnail-full-path))
-	(apply system*
-	       (append (cons thumbnail-cmd
-			     thumbnail-args)
-		       (list image-full-path
-			     thumbnail-full-path))))))
+(define (ensure-derivative-image dest-dir convert-args)
+  (lambda (folder image-fname)
+    (let ((image-full-path     (string-join
+				`(,image-dir ,folder ,image-fname) "/"))
+	  (derivative-full-path (string-join `(,dest-dir
+					       ,folder
+					       ,(replace-extension
+						 image-fname
+						 standard-derivative-extension))
+					     "/")))
+      ;; FIXME vulnerable to a regular file existing with this name.
+      (if (not (and (file-exists? (dirname derivative-full-path))
+		    (file-is-directory? (dirname derivative-full-path))))
+	  (mkdir (dirname derivative-full-path)))
+      (if (not (file-exists? derivative-full-path))
+	  (apply system*
+		 (append (cons derivative-cmd
+			       convert-args)
+			 (list image-full-path
+			       derivative-full-path)))))))
+
+(define ensure-thumbnail (ensure-derivative-image thumbnail-dir '("-resize" "80x80")))
 
 (define (make-thumbnail folder-name image-name)
   (ensure-thumbnail folder-name image-name)
@@ -143,7 +146,9 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
       (and (file-exists?       full-path)
 	   (file-is-directory? full-path)
 	   (is-image-folder?   full-path))))
-  (filter is-image-folder-name? (all-files image-dir)))
+  (sort
+   (filter is-image-folder-name? (all-files image-dir))
+   string<?))
 
 (define (lookup-image-folder uri-path)
   (let ((fname (uri-path->path (list image-dir (car uri-path)))))
@@ -241,9 +246,11 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
       (char-numeric? c)))
 
 (define (all-image-names folder-name)
-  (map basename
-       (filter image-file?
-	       (all-files (string-append image-dir "/" folder-name)))))
+  (sort
+   (map basename
+	(filter image-file?
+		(all-files (string-append image-dir "/" folder-name))))
+   string<?))
 
 (define (image-uri folder-name image-name)
   (string-append
@@ -259,7 +266,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   `(ul (@ (class "thumbnails gallery"))
     ,(map (lambda (image-name)
 	    `(li ,(make-thumbnail folder-name image-name)))
-	  (all-image-names folder-name))))
+	  (take/max (all-image-names folder-name) 6))))
 
 (define (image-folder->li folder-name)
   `(li (@ (class "folder-link"))
@@ -274,7 +281,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
    (with-standard-header
     `(body
       (ul (@ (class "folder-list"))
-       ,(map image-folder->li (all-image-folders)))))))
+	  ,(map image-folder->li (all-image-folders)))))))
 
 (define (with-error-handler thunk)
   (catch #t thunk
@@ -292,4 +299,4 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	((>= (length uri-path) 1)     (folder-page uri-path))
 	(else                         (unknown-request)))))))
 
-(run-server hazel-photo-handler 'http)
+(run-server hazel-photo-handler 'http '(#:host "127.0.0.1"))

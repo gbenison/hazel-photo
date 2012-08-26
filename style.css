@@ -37,6 +37,7 @@ ul {
 ul.gallery {
     width:     100%;
     overflow:  auto;
+    display:   none;  /* DEBUG */
 }
 
 ul.gallery > li {
