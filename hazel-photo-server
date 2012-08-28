@@ -37,7 +37,6 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 (define image-server-base-url "http://localhost:8081/")
 (define media-dir     "media")
 (define image-dir     "media/images")
-(define feature-dir   "media/featured")
 (define derivative-cmd "/usr/bin/convert")
 
 (define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
@@ -123,7 +122,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	(->uri folder image-fname)))))
 
 (define ensure-thumbnail (ensure-derivative-image "thumbnails" '("-resize" "80x80")))
-(define ensure-feature   (ensure-derivative-image "feature" '("-resize" "600x400>")))
+(define ensure-feature   (ensure-derivative-image "feature" '("-resize" "600x600>")))
 
 (define (make-thumbnail folder-name image-name)
   `(img (@ (src ,(ensure-thumbnail folder-name image-name)))))
@@ -192,11 +191,12 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	  (as-html-reply
 	   (with-standard-header
 	    `(body
-	      (h2 ,(car uri-path))
-	      (ul (@ (class "thumbnails gallery"))
-		  ,@(map li-for (reverse (take/max prev-images 5)))
-		  ,(li-for selected-image 'selected)
-		  ,@(map li-for (take/max next-images 5)))
+	      (div (@ (class "sidebar"))
+	       (h2 ,(car uri-path))
+	       (ul (@ (class "thumbnails gallery"))
+		   ,@(map li-for (reverse (take/max prev-images 5)))
+		   ,(li-for selected-image 'selected)
+		   ,@(map li-for (take/max next-images 5))))
 	      (div (@ (class "featured"))
 		   (span
 		    ,@(if (null? prev-images)

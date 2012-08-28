@@ -37,6 +37,8 @@ ul {
 ul.gallery {
     width:     100%;
     overflow:  auto;
+    margin-left:  0px;
+    padding-left: 0px;
 }
 
 ul.gallery > li {
@@ -51,11 +53,18 @@ ul.gallery > li > a {
 
 .folder-list {
     list-style-type:  none;
+    line-height:      120%;
+}
+
+.folder-list h2 {
+    font-family: verdana, sans-serif;
+    font-size:   100%;
 }
 
 div.featured {
     margin-top:  0.5in;
     text-align:  center;
+    margin-right:  2in;
 }
 
 div.featured a {
@@ -69,5 +78,9 @@ div.featured a {
 .featured img {
     padding:   8px;
     border:    4px black solid;
-    max-width: 50%; 
+}
+
+div.sidebar {
+    float: right;
+    width: 1.9in;
 }
