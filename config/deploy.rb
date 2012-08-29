@@ -5,6 +5,7 @@ set :deploy_to,   "/home/gbenison/hazelphoto.com"
 
 set :user,     "gbenison"
 set :use_sudo, false
+set :normalize_asset_timestamps, false
 
 role :web, "watanabe.dreamhost.com"
 role :app, "watanabe.dreamhost.com"
