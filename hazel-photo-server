@@ -34,9 +34,12 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	     (web uri)
 	     (web server))
 
-(define image-server-base-url "http://localhost:8081/")
-(define media-dir     "media")
-(define image-dir     "media/images")
+(define image-server-base-url
+  (or (getenv "HAZEL_MEDIA_URL") "http://localhost:8081/"))
+(define socket-file-name
+  (or (getenv "HAZEL_SOCK_PATH") "/tmp/test.sock"))
+(define media-dir      "media")
+(define image-dir      "media/images")
 (define derivative-cmd "/usr/bin/convert")
 
 (define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
@@ -304,4 +307,13 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	((>= (length uri-path) 1)     (folder-page uri-path))
 	(else                         (unknown-request)))))))
 
-(run-server hazel-photo-handler 'http '(#:host "127.0.0.1"))
+
+(define (make-unix-socket fname)
+  (let ((server-socket (socket PF_UNIX SOCK_STREAM 0)))
+    (if (file-exists? fname) (delete-file fname))
+    (bind server-socket AF_UNIX fname)
+    server-socket))
+
+(run-server hazel-photo-handler
+	    'http
+	    `(#:socket ,(make-unix-socket socket-file-name)))
