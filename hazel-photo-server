@@ -38,8 +38,9 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   (or (getenv "HAZEL_MEDIA_URL") "http://localhost:8081/"))
 (define socket-file-name
   (or (getenv "HAZEL_SOCK_PATH") "/tmp/test.sock"))
-(define media-dir      "media")
-(define image-dir      "media/images")
+(define media-dir
+  (or (getenv "HAZEL_MEDIA_DIR") "media"))
+(define image-dir      (string-append media-dir "/images"))
 (define derivative-cmd "/usr/bin/convert")
 
 (define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
