@@ -11,8 +11,8 @@
 #include <sys/un.h>
 #include <errno.h>
 
-static const char* socket_name =
-  getenv("HAZEL_SOCK_PATH") ? getenv("HAZEL_SOCK_PATH") : "/tmp/test.sock";
+/* default; set by HAZEL_SOCK_PATH */
+static char* socket_name = "/tmp/test.sock";
 static const char* request_path = "/taubatron";
 
 static int
@@ -54,6 +54,8 @@ main()
   int content_length = 0;
   if (getenv("CONTENT_LENGTH"))
     content_length = atoi(getenv("CONTENT_LENGTH"));
+  
+  if (getenv("HAZEL_SOCK_PATH")) { socket_name = getenv("HAZEL_SOCK_PATH"); }
 
   /* Read content from stdin, if any */
   char buf[content_length];
