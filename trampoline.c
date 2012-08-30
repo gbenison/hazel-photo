@@ -12,8 +12,9 @@
 #include <errno.h>
 
 /* default; set by HAZEL_SOCK_PATH */
-static char* socket_name = "/tmp/test.sock";
-static const char* request_path = "/taubatron";
+static char* socket_name  = "hazel.sock";
+static char* request_path = "/";
+static char* request_method = "GET";
 
 static int
 open_socket_fd(const char *path)
@@ -55,7 +56,9 @@ main()
   if (getenv("CONTENT_LENGTH"))
     content_length = atoi(getenv("CONTENT_LENGTH"));
   
-  if (getenv("HAZEL_SOCK_PATH")) { socket_name = getenv("HAZEL_SOCK_PATH"); }
+  if (getenv("HAZEL_SOCK_PATH")) { socket_name  = getenv("HAZEL_SOCK_PATH"); }
+  if (getenv("REQUEST_URI"))     { request_path = getenv("REQUEST_URI"); }
+  if (getenv("REQUEST_METHOD"))  { request_method = getenv("REQUEST_METHOD"); }
 
   /* Read content from stdin, if any */
   char buf[content_length];
@@ -66,8 +69,8 @@ main()
 
   /* Construct request and send to upstream. */
   fprintf(upstream_socket, "%s %s %s\r\n",
-	  getenv("REQUEST_METHOD"),
-	  getenv("REQUEST_URI"),
+	  request_method,
+	  request_path,
 	  "HTTP/1.0");
   if (content_length > 0)
     fprintf(upstream_socket, "Content-length: %d\r\n", actual_content_length);
