@@ -54,6 +54,7 @@ ul.gallery > li > a {
 .folder-list {
     list-style-type:  none;
     line-height:      120%;
+    margin-bottom:    1.2in;
 }
 
 .folder-list h2 {
@@ -64,7 +65,7 @@ ul.gallery > li > a {
 div.featured {
     margin-top:  0.5in;
     text-align:  center;
-    margin-right:  2in;
+    margin-right:  2.3in;
 }
 
 div.featured a {
@@ -82,5 +83,5 @@ div.featured a {
 
 div.sidebar {
     float: right;
-    width: 1.9in;
+    width: 2.2in;
 }

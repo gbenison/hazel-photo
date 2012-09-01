@@ -125,8 +125,10 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 				 derivative-full-path))))
 	(->uri folder image-fname)))))
 
-(define ensure-thumbnail (ensure-derivative-image "thumbnails" '("-resize" "80x80")))
-(define ensure-feature   (ensure-derivative-image "feature" '("-resize" "600x600>")))
+(define ensure-thumbnail
+  (ensure-derivative-image "thumbnails" '("-resize" "80x80")))
+(define ensure-feature
+  (ensure-derivative-image "feature" '("-resize" "600x520>")))
 
 (define (make-thumbnail folder-name image-name)
   `(img (@ (src ,(ensure-thumbnail folder-name image-name)))))
