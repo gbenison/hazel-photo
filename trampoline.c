@@ -20,7 +20,7 @@ static int
 open_socket_fd(const char *path)
 {
   int result = socket(AF_UNIX, SOCK_STREAM, 0);
-  if (result < 1) { perror("socket"); exit(1); }
+  if (result < 1) { perror("socket"); return -1; }
 
   struct sockaddr_un addr;
   memset(&addr, 0, sizeof(struct sockaddr_un));
@@ -29,7 +29,7 @@ open_socket_fd(const char *path)
 
   connect(result, (const struct sockaddr*)(&addr), sizeof(addr));
 
-  return result;
+  return (errno == 0) ? result : -1;
 }
 
 static FILE*
@@ -37,14 +37,14 @@ open_socket_file(const char *path)
 {
   int socket_fd = open_socket_fd(path);
   
-  if (errno != 0)
+  if (socket_fd < 1)
     {
       perror(path);
-      exit(1);
+      return NULL;
     }
 
   FILE* result = fdopen(socket_fd, "w");
-  if (result == NULL) { perror(path); exit(1); }
+  if (result == NULL) { perror(path); return NULL; }
 
   return result;
 }
@@ -56,8 +56,8 @@ main()
   if (getenv("CONTENT_LENGTH"))
     content_length = atoi(getenv("CONTENT_LENGTH"));
   
-  if (getenv("HAZEL_SOCK_PATH")) { socket_name  = getenv("HAZEL_SOCK_PATH"); }
-  if (getenv("REQUEST_URI"))     { request_path = getenv("REQUEST_URI"); }
+  if (getenv("HAZEL_SOCK_PATH")) { socket_name    = getenv("HAZEL_SOCK_PATH"); }
+  if (getenv("REQUEST_URI"))     { request_path   = getenv("REQUEST_URI"); }
   if (getenv("REQUEST_METHOD"))  { request_method = getenv("REQUEST_METHOD"); }
 
   /* Read content from stdin, if any */
@@ -65,6 +65,23 @@ main()
   int actual_content_length = fread(buf, 1, content_length, stdin);
 
   FILE *upstream_socket = open_socket_file(socket_name);
+  
+  if (upstream_socket == NULL)
+    {
+      /* echo custom failure message, or exit with failure */
+      FILE *fail_h = fopen("trampoline.fail", "r");
+      if (fail_h)
+	{
+	  char buf[512];
+	  int nread;
+	  while ((nread = fread(buf, 1, 512, fail_h)) > 0)
+	    fwrite(buf, 1, nread, stdout);
+	  return 0;
+	}
+      else
+	return 1;
+    }
+
   setvbuf(upstream_socket, NULL, _IONBF, 0);
 
   /* Construct request and send to upstream. */
