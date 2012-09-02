@@ -137,9 +137,10 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   (let ((handle (opendir dirname)))
     (let loop ((result '()))
       (let ((next (readdir handle)))
-	(if (eof-object? next)
-	    result
-	    (loop (cons next result)))))))
+	(cond ((eof-object? next) result)
+	      ((string-match "^[.]" next)
+	       (loop result))
+	      (else (loop (cons next result))))))))
 
 (define (is-image-folder? dirname)
   (any image-file?
