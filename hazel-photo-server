@@ -297,6 +297,22 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
       (ul (@ (class "folder-list"))
 	  ,(map image-folder->li (all-image-folders)))))))
 
+;; Regenerate thumbnails and features for all images.
+(define (cache-all)
+  (for-each
+   (lambda (folder-name)
+     (for-each
+      (lambda (image-name)
+	(ensure-feature folder-name image-name)
+	(ensure-thumbnail folder-name image-name))
+      (all-image-names folder-name)))
+   (all-image-folders))
+  (as-html-reply
+   (with-standard-header
+    `(body
+      (p "All done!"
+	 (a (@ (href "/")) "Continue"))))))
+
 (define (with-error-handler thunk)
   (catch #t thunk
     (lambda args
@@ -310,6 +326,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
      (let ((uri-path (request-path-components request)))
        (cond
 	((null? uri-path)             (landing-page))
+	((equal? (car uri-path)
+		 "cache-all")         (cache-all))
 	((>= (length uri-path) 1)     (folder-page uri-path))
 	(else                         (unknown-request)))))))
 
