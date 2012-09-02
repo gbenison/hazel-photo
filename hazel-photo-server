@@ -42,6 +42,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   (or (getenv "HAZEL_MEDIA_DIR") "media"))
 (define image-dir      (string-append media-dir "/images"))
 (define derivative-cmd "/usr/bin/convert")
+;; The number of thumbnails to display before and after the featured image
+(define nav-n-thumbnails 6)
 
 (define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
 (define standard-derivative-extension "jpg")
@@ -201,9 +203,9 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	      (div (@ (class "sidebar"))
 	       (h2 ,(car uri-path))
 	       (ul (@ (class "thumbnails gallery"))
-		   ,@(map li-for (reverse (take/max prev-images 5)))
+		   ,@(map li-for (reverse (take/max prev-images nav-n-thumbnails)))
 		   ,(li-for selected-image 'selected)
-		   ,@(map li-for (take/max next-images 5))))
+		   ,@(map li-for (take/max next-images nav-n-thumbnails))))
 	      (div (@ (class "featured"))
 		   (span
 		    ,@(if (null? prev-images)
