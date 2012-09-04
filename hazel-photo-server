@@ -42,8 +42,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   (or (getenv "HAZEL_MEDIA_DIR") "media"))
 (define image-dir      (string-append media-dir "/images"))
 (define derivative-cmd "/usr/bin/convert")
-;; The number of thumbnails to display before and after the featured image
-(define nav-n-thumbnails 6)
+;; The number of thumbnails to display on a folder page
+(define nav-n-thumbnails 12)
 
 (define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
 (define standard-derivative-extension "jpg")
@@ -70,6 +70,11 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	(else (cons (car elems)
 		    (take/max (cdr elems) (- n 1))))))
 
+(define (drop/max elems n)
+  (cond ((null? elems) '())
+	((= n 0) elems)
+	(else (drop/max (cdr elems) (- n 1)))))
+
 ;; Returns three values:
 ;; 1) The longest prefix of 'elems' for none of which (pred elem) is true,
 ;;    in reverse order;
@@ -93,6 +98,29 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	(values '()
 		(car elems)
 		(cdr elems)))))
+
+;; Take at most 'n' items, evenly spreading the load
+;; between list1 and list2.  Return four values:
+;; 1) a prefix of list1;
+;; 2) a prefix of list2 (such that length(#1) + length(#2) <= n;
+;; 3) the remaining elements of list1;
+;; 4) the remaining elements of list2.
+(define (take-evenly list1 list2 n)
+  (cond ((equal? n 0)
+	 (values '() '() list1 list2))
+	((and (null? list1) (null? list2))
+	 (values '() '() list1 list2))
+	((null? list1)
+	 (values '() (take/max list2 n) '() (drop/max list2 n)))
+	((null? list2)
+	 (values (take/max list1 n) '() (drop/max list1 n) '()))
+	(else
+	 (receive (init1 init2 tail1 tail2)
+	     (take-evenly (cdr list1) (cdr list2) (- n 2))
+	   (values (cons (car list1) init1)
+		   (cons (car list2) init2)
+		   tail1
+		   tail2)))))
 
 (define (derivative-uri type)
   (lambda (folder image-fname)
@@ -192,31 +220,37 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
     (if (not (and (file-exists? folder-path)
 		  (file-is-directory? folder-path)))
 	(folder-not-found-page uri-path)
-	(receive (prev-images
+	(receive (prev-images-all
 		  selected-image
-		  next-images)
+		  next-images-all)
 	    (pick-around/default (string-match-with? selected-image-name)
 				 (all-image-names folder-name))
-	  (as-html-reply
-	   (with-standard-header
-	    `(body
-	      (div (@ (class "sidebar"))
-	       (h2 ,(car uri-path))
-	       (ul (@ (class "thumbnails gallery"))
-		   ,@(map li-for (reverse (take/max prev-images nav-n-thumbnails)))
-		   ,(li-for selected-image 'selected)
-		   ,@(map li-for (take/max next-images nav-n-thumbnails))))
-	      (div (@ (class "featured"))
-		   (span
-		    ,@(if (null? prev-images)
-			  '()
-			  `((a (@ (href ,(path->uri (list "" folder-name (car prev-images)))))
-			       "<")))
-		    ,(img-element-for folder-name selected-image)
-		    ,@(if (null? next-images)
-			  '()
-			  `((a (@ (href ,(path->uri (list "" folder-name (car next-images)))))
-			       ">"))))))))))))
+	  (receive (prev-images
+		    next-images
+		    prev-images-remaining
+		    next-images-remaining)
+	      (take-evenly prev-images-all next-images-all nav-n-thumbnails)
+	    (as-html-reply
+	     (with-standard-header
+	      `(body
+		(div (@ (class "sidebar"))
+		     (h2 ,(car uri-path))
+		     ;; FIXME 'more remaining' marker??
+		     (ul (@ (class "thumbnails gallery"))
+			 ,@(map li-for (reverse prev-images))
+			 ,(li-for selected-image 'selected)
+			 ,@(map li-for next-images)))
+		(div (@ (class "featured"))
+		     (span
+		      ,@(if (null? prev-images)
+			    '()
+			    `((a (@ (href ,(path->uri (list "" folder-name (car prev-images)))))
+				 "<")))
+		      ,(img-element-for folder-name selected-image)
+		      ,@(if (null? next-images)
+			    '()
+			    `((a (@ (href ,(path->uri (list "" folder-name (car next-images)))))
+				 ">")))))))))))))
 
 (define (unknown-request)
   (as-html-reply
@@ -338,6 +372,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
     (bind server-socket AF_UNIX fname)
     server-socket))
 
-(run-server hazel-photo-handler
-	    'http
-	    `(#:socket ,(make-unix-socket socket-file-name)))
+(if (getenv "HAZEL_RUN_LOCAL")
+    (run-server hazel-photo-handler 'http)
+    (run-server hazel-photo-handler
+		'http
+		`(#:socket ,(make-unix-socket socket-file-name))))
