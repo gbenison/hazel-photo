@@ -48,11 +48,18 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 (define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
 (define standard-derivative-extension "jpg")
 
-(define (image-file? fname)
-  (any
-   (lambda (suffix)
-     (string-match (string-append "." suffix) fname))
-   image-suffixes))
+(define (is-image-file? fname)
+  (and (file-exists? fname)
+       (not (file-is-directory? fname))
+       (any
+	(lambda (suffix)
+	  (string-match (string-append "." suffix) fname))
+	image-suffixes)))
+
+(define (is-image-folder? dirname)
+  (and (file-is-directory? dirname)
+       (any is-image-file?
+	    (map (prepend-path (list dirname))(all-files dirname)))))
 
 (define (replace-extension fname new-ext)
   (let ((my-match (string-match "[.][^./]*$" fname)))
@@ -172,10 +179,6 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	       (loop result))
 	      (else (loop (cons next result))))))))
 
-(define (is-image-folder? dirname)
-  (any image-file?
-       (map (prepend-path (list dirname))(all-files dirname))))
-
 (define (prepend-path path)
   (lambda (fname)
     (string-join (append path (list fname)) "/")))
@@ -188,6 +191,15 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	   (is-image-folder?   full-path))))
   (sort
    (filter is-image-folder-name? (all-files image-dir))
+   string<?))
+
+(define (all-images-or-directories base)
+  (sort
+   (filter (lambda (fname)
+	     (let ((full-path (string-append base "/" fname)))
+	       (or (is-image-file?   full-path)
+		   (is-image-folder? full-path))))
+	   (all-files base))
    string<?))
 
 (define (lookup-image-folder uri-path)
@@ -205,6 +217,44 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
    (with-standard-header
     `(body (p "Folder " ,path " does not exist.  Try one of these:")
 	   (ul ,(map image-folder->li (all-image-folders)))))))
+
+;
+; Folder selectors:
+; (a b) --> match (a b c' d') where c' and d' are the first legitimate choices
+;
+; 1) normalize path
+; 2) render path --
+;    + folder tree
+;    + gallery and featured image
+;
+
+;; Returns a path (list of fnames) to an image file.
+;;
+;; If the supplied uri is shorter than a path to an image, it is extended by
+;; appending the first member of each folder.
+;;
+;; "default actual path"        (a b c d) let 'd' be a regular file
+;; "alternative actual path"    (a' b c d")
+;;
+;; ()         ->      (a b c d)
+;; (a')       ->      (a' b c d)
+;; (a b c d') ->      (a b c d')
+;;
+(define (normalize-path uri)
+  (normalize-path* image-dir uri))
+
+(define (normalize-path* base guide)
+  (display base) (newline)
+  (cond ((is-image-file? base)  (string-split base #\/))
+	((not (and (file-exists? base)
+		   (file-is-directory? base)))
+	 #f)
+	((null? guide)
+	 (let ((next-steps (all-images-or-directories base)))
+	   (and (not (null? next-steps))
+		(normalize-path* base (take next-steps 1)))))
+	(else (normalize-path* (string-append base "/" (car guide))
+			       (cdr guide)))))
 
 (define (folder-page uri-path)
   (let* ((folder-name (uri-decode (first uri-path)))
@@ -295,7 +345,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 (define (all-image-names folder-name)
   (sort
    (map basename
-	(filter image-file?
+	(filter is-image-file?
 		(all-files (string-append image-dir "/" folder-name))))
    string<?))
 
@@ -308,13 +358,13 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 
 (define (img-element-for folder-name image-name)
   `(a (@ (href ,(image-uri folder-name image-name)))
-    (img (@ (src ,(ensure-feature folder-name image-name))))))
+      (img (@ (src ,(ensure-feature folder-name image-name))))))
 
 (define (folder->thumbnail-ul folder-name)
   `(ul (@ (class "thumbnails gallery"))
-    ,(map (lambda (image-name)
-	    `(li ,(make-thumbnail folder-name image-name)))
-	  (take/max (all-image-names folder-name) 6))))
+       ,(map (lambda (image-name)
+	       `(li ,(make-thumbnail folder-name image-name)))
+	     (take/max (all-image-names folder-name) 6))))
 
 (define (image-folder->li folder-name)
   `(li (@ (class "folder-link"))
@@ -359,12 +409,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
    (lambda ()
      (let ((uri-path (request-path-components request)))
        (cond
-	((null? uri-path)             (landing-page))
-	((equal? (car uri-path)
-		 "cache-all")         (cache-all))
-	((>= (length uri-path) 1)     (folder-page uri-path))
-	(else                         (unknown-request)))))))
-
+	((equal? (car uri-path) "cache-all")  (cache-all))
+	(else                                 (folder-page uri-path)))))))
 
 (define (make-unix-socket fname)
   (let ((server-socket (socket PF_UNIX SOCK_STREAM 0)))
@@ -372,8 +418,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
     (bind server-socket AF_UNIX fname)
     server-socket))
 
-(if (getenv "HAZEL_RUN_LOCAL")
-    (run-server hazel-photo-handler 'http)
-    (run-server hazel-photo-handler
-		'http
-		`(#:socket ,(make-unix-socket socket-file-name))))
+					; (if (getenv "HAZEL_RUN_LOCAL")
+					;     (run-server hazel-photo-handler 'http)
+					;     (run-server hazel-photo-handler
+					; 		'http
+					; 		`(#:socket ,(make-unix-socket socket-file-name))))
