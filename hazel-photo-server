@@ -183,6 +183,11 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   (lambda (fname)
     (string-join (append path (list fname)) "/")))
 
+(define (all-folders base)
+  (filter (lambda (fname)
+	    (file-is-directory? (string-append base "/" fname)))
+	  (all-files base)))
+
 (define (all-image-folders)
   (define (is-image-folder-name? fname)
     (let ((full-path (string-append image-dir "/" fname)))
@@ -241,20 +246,37 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 ;; (a b c d') ->      (a b c d')
 ;;
 (define (normalize-path uri)
-  (normalize-path* image-dir uri))
+  (normalize-path* image-dir uri '()))
 
-(define (normalize-path* base guide)
-  (display base) (newline)
-  (cond ((is-image-file? base)  (string-split base #\/))
-	((not (and (file-exists? base)
-		   (file-is-directory? base)))
-	 #f)
-	((null? guide)
-	 (let ((next-steps (all-images-or-directories base)))
-	   (and (not (null? next-steps))
-		(normalize-path* base (take next-steps 1)))))
-	(else (normalize-path* (string-append base "/" (car guide))
-			       (cdr guide)))))
+(define (normalize-path* base guide accepted)
+  (let ((path (string-append base "/" (string-join accepted "/"))))
+    (cond ((is-image-file? path) accepted)
+	  ((not (and (file-exists? path)
+		     (file-is-directory? path)))
+	   #f)
+	  ((null? guide)
+	   (let ((next-steps (all-images-or-directories path)))
+	     (and (not (null? next-steps))
+		  (normalize-path* base (take next-steps 1) accepted))))
+	  (else (normalize-path* base
+				 (cdr guide)
+				 (append accepted (list (car guide))))))))
+
+;; FIXME should be (li) not ((li))
+(define (path->selection-tree base path)
+  (let go ((path path)
+	   (base' base))
+    (if (< (length path) 2) '() ;; List of length 1 is just the image name
+	;; FIXME sort
+	`(ul
+	  ,(map
+	    (lambda (dir)
+	      `(li (span ,dir)
+		   ,@(if (equal? (car path) dir)
+			 (go (cdr path)
+			     (string-append base' "/" (car path)))
+			 '())))
+	    (all-folders base'))))))
 
 (define (folder-page uri-path)
   (let* ((folder-name (uri-decode (first uri-path)))
