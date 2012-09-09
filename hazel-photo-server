@@ -146,22 +146,22 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 		   tail2)))))
 
 (define (derivative-uri type)
-  (lambda (folder image-fname)
+  (lambda (folder-path image-fname)
     (string-append
      image-server-base-url
-     (path->uri (list type
-		      (basename folder)
-		      (replace-extension image-fname
-					 standard-derivative-extension))))))
+     (path->uri `(,type
+		  ,@folder-path
+		  ,(replace-extension image-fname
+				      standard-derivative-extension))))))
 
 (define (ensure-derivative-image dest-dir convert-args)
   (let ((->uri (derivative-uri dest-dir)))
-    (lambda (folder image-fname)
+    (lambda (folder-path image-fname)
       (let ((image-full-path     (string-join
-				  `(,image-dir ,folder ,image-fname) "/"))
+				  `(,image-dir ,@folder-path ,image-fname) "/"))
 	    (derivative-full-path (string-join `(,media-dir
 						 ,dest-dir
-						 ,folder
+						 ,@folder-path
 						 ,(replace-extension
 						   image-fname
 						   standard-derivative-extension))
@@ -176,15 +176,15 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 				 convert-args)
 			   (list image-full-path
 				 derivative-full-path))))
-	(->uri folder image-fname)))))
+	(->uri folder-path image-fname)))))
 
 (define ensure-thumbnail
   (ensure-derivative-image "thumbnails" '("-resize" "80x80")))
 (define ensure-feature
   (ensure-derivative-image "feature" '("-resize" "600x520>")))
 
-(define (make-thumbnail folder-name image-name)
-  `(img (@ (src ,(ensure-thumbnail folder-name image-name)))))
+(define (make-thumbnail folder-path image-name)
+  `(img (@ (src ,(ensure-thumbnail folder-path image-name)))))
 
 (define (all-files dirname)
   (let ((handle (opendir dirname)))
@@ -303,37 +303,60 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
       `(body
 	(div (@ (id "selection-tree"))
 	     ,(path->selection-tree image-dir path))
-	;; FIXME feature image
+	(div (@ (id "featured"))
+	     ,(make-featured-image path))
 	(div (@ (id "nav"))
-	     ,(make-thumbnail-gallery path))
-	)))))
+	     ,(make-thumbnail-gallery path)))))))
+
+(define (make-featured-image path)
+  (with-image-list
+   (lambda (prev-images next-images folder-name selected-image)
+     `(span
+       ,@(if (null? prev-images)
+	    '()
+	    `((a (@ (href ,(path->uri (list "" folder-name (car prev-images)))))
+		 "<")))
+       ,(img-element-for (drop-right path 1) selected-image)
+       ,@(if (null? next-images)
+	     '()
+	     `((a (@ (href ,(path->uri (list "" folder-name (car next-images)))))
+		  ">")))))
+   path))
+
+;; Given a path (dir1 dir2 ... fname),
+;; Call (op prev next folder-name selected)
+(define (with-image-list op path)
+  (let ((folder-name (string-join (drop-right path 1) "/"))
+	(selected-image-name (last path)))
+    (receive (prev-images
+	      selected-image
+	      next-images)
+	(pick-around/default (string-match-with? selected-image-name)
+			     (all-image-names folder-name))
+      (op prev-images next-images folder-name selected-image))))
 
 ;; FIXME directory separators in paths are ending up percent-encoded.
 ;; 'path' is assumed to be a relative path to an image file,
 ;; with the image file name as the final member.
 (define (make-thumbnail-gallery path)
-  (let ((folder-name (string-join (drop-right path 1) "/"))
-	(selected-image-name (last path)))
-    (define* (li-for image-name #:optional selected)
-      `(li (a (@ (href ,(path->uri (maybe-prepend "" (append (drop-right path 1) (list image-name)))))
-		 ,@(if selected
-		       '((class "selected"))
-		       '()))
-	      ,(make-thumbnail folder-name image-name))))
-    (receive (prev-images-all
-	      selected-image
-	      next-images-all)
-	(pick-around/default (string-match-with? selected-image-name)
-			     (all-image-names folder-name))
-      (receive (prev-images
-		next-images
-		prev-images-remaining
-		next-images-remaining)
-	  (take-evenly prev-images-all next-images-all nav-n-thumbnails)
-	`(ul (@ (class "thumbnails gallery"))
-	     ,@(map li-for (reverse prev-images))
-	     ,(li-for selected-image 'selected)
-	     ,@(map li-for next-images))))))
+  (with-image-list
+   (lambda (prev-images-all next-images-all folder-name selected-image)
+     (define* (li-for image-name #:optional selected)
+       `(li (a (@ (href ,(path->uri (maybe-prepend "" (append (drop-right path 1) (list image-name)))))
+		  ,@(if selected
+			'((class "selected"))
+			'()))
+	       ,(make-thumbnail (drop-right path 1) image-name))))
+     (receive (prev-images
+	       next-images
+	       prev-images-remaining
+	       next-images-remaining)
+	 (take-evenly prev-images-all next-images-all nav-n-thumbnails)
+       `(ul (@ (class "thumbnails gallery"))
+	    ,@(map li-for (reverse prev-images))
+	    ,(li-for selected-image 'selected)
+	    ,@(map li-for next-images))))
+   path))
 
 (define (folder-page uri-path)
   (let* ((folder-name (uri-decode (first uri-path)))
@@ -430,16 +453,17 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	 (all-files (string-append image-dir "/" folder-name))))
    string<?))
 
-(define (image-uri folder-name image-name)
+(define (image-uri folder-path image-name)
   (string-append
    image-server-base-url
-   (path->uri (list "images"
-		    (basename folder-name)
-		    (basename image-name)))))
+   (path->uri `("images"
+		,@folder-path
+		,(basename image-name)))))
 
-(define (img-element-for folder-name image-name)
-  `(a (@ (href ,(image-uri folder-name image-name)))
-      (img (@ (src ,(ensure-feature folder-name image-name))))))
+(define (img-element-for folder-path image-name)
+  (let ((image-uri (ensure-feature folder-path image-name)))
+    `(a (@ (href ,image-uri))
+	(img (@ (src ,image-uri))))))
 
 (define (folder->thumbnail-ul folder-name)
   `(ul (@ (class "thumbnails gallery"))
