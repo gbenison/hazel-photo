@@ -265,7 +265,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 (define (path->selection-tree base path)
   (let go ((path path)
 	   (suffix "/"))
-    (if (< (length path) 2) '() ;; List of length 1 is just the image name
+    (if (< (length path) 2)
+	'() ;; List of length 1 is just the image name
 	;; FIXME sort
 	`(ul
 	  ,@(map
@@ -282,7 +283,10 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   (as-html-reply
    (with-standard-header
     `(body
-      ,(path->selection-tree image-dir (normalize-path uri-path))))))
+      ,(path->selection-tree
+	image-dir
+	(or (normalize-path uri-path)
+	    (normalize-path '())))))))
 
 (define (folder-page uri-path)
   (let* ((folder-name (uri-decode (first uri-path)))
@@ -427,11 +431,16 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 
 ;; FIXME: use (backtrace) to get a backtrace from 'thunk'
 (define (with-error-handler thunk)
-  (catch #t thunk
-    (lambda (key proc msg msg-args . rest)
-      (values '((content-type . (text/plain)))
-	      (let ((error-msg (apply format #f msg msg-args)))
-		(format #f "~s: ~s: ~s~%" proc key error-msg))))))
+  (let ((bt ""))
+    (catch #t thunk
+      (lambda (key proc msg msg-args . rest)
+	(values '((content-type . (text/plain)))
+		(let ((error-msg (apply format #f msg msg-args)))
+		  (string-append
+		   (format #f "~s: ~s: ~s~%" proc key error-msg)
+		   "\n"
+		   bt))))
+      (lambda args (set! bt (with-output-to-string backtrace))))))
 
 (define (hazel-photo-handler request request-body)
   (with-error-handler
