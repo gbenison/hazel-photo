@@ -262,21 +262,27 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 				 (cdr guide)
 				 (append accepted (list (car guide))))))))
 
-;; FIXME should be (li) not ((li))
 (define (path->selection-tree base path)
   (let go ((path path)
-	   (base' base))
+	   (suffix "/"))
     (if (< (length path) 2) '() ;; List of length 1 is just the image name
 	;; FIXME sort
 	`(ul
-	  ,(map
-	    (lambda (dir)
-	      `(li (span ,dir)
-		   ,@(if (equal? (car path) dir)
-			 (go (cdr path)
-			     (string-append base' "/" (car path)))
-			 '())))
-	    (all-folders base'))))))
+	  ,@(map
+	     (lambda (dir)
+	       `(li (a (@ (href ,(string-append suffix dir)))
+		       ,dir)
+		    ,@(if (equal? (car path) dir)
+			  (list (go (cdr path)
+				    (string-append suffix (car path) "/")))
+			  '())))
+	     (all-folders (string-append base suffix)))))))
+
+(define (standard-page uri-path)
+  (as-html-reply
+   (with-standard-header
+    `(body
+      ,(path->selection-tree image-dir (normalize-path uri-path))))))
 
 (define (folder-page uri-path)
   (let* ((folder-name (uri-decode (first uri-path)))
@@ -431,8 +437,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
    (lambda ()
      (let ((uri-path (request-path-components request)))
        (cond
-	((equal? (car uri-path) "cache-all")  (cache-all))
-	(else                                 (folder-page uri-path)))))))
+	((equal? uri-path '("cache-all"))  (cache-all))
+	(else                              (standard-page uri-path)))))))
 
 (define (make-unix-socket fname)
   (let ((server-socket (socket PF_UNIX SOCK_STREAM 0)))
@@ -440,8 +446,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
     (bind server-socket AF_UNIX fname)
     server-socket))
 
-					; (if (getenv "HAZEL_RUN_LOCAL")
-					;     (run-server hazel-photo-handler 'http)
-					;     (run-server hazel-photo-handler
-					; 		'http
-					; 		`(#:socket ,(make-unix-socket socket-file-name))))
+(if (getenv "HAZEL_RUN_LOCAL")
+    (run-server hazel-photo-handler 'http)
+    (run-server hazel-photo-handler
+   		'http
+   		`(#:socket ,(make-unix-socket socket-file-name))))
