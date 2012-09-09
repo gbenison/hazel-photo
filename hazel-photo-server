@@ -48,6 +48,22 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 (define image-suffixes '("jpg" "JPEG" "JPG" "png" "PNG" "tif" "tiff" "TIFF"))
 (define standard-derivative-extension "jpg")
 
+(define (mkdir-p path)
+  (fold
+   (lambda (next prev)
+     (let ((this-dir (string-append prev next "/")))
+       (if (not (and (file-exists? this-dir)
+		     (file-is-directory? this-dir)))
+	   (mkdir this-dir))
+       this-dir))
+   ""
+   (string-split path #\/)))
+
+(define (maybe-prepend elem lst)
+  (cond ((null? lst)             (list elem))
+	((equal? (car lst) elem) lst)
+	(else (cons elem lst))))
+
 (define (is-image-file? fname)
   (and (file-exists? fname)
        (not (file-is-directory? fname))
@@ -153,7 +169,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	;; FIXME vulnerable to a regular file existing with this name.
 	(if (not (and (file-exists? (dirname derivative-full-path))
 		      (file-is-directory? (dirname derivative-full-path))))
-	    (mkdir (dirname derivative-full-path)))
+	    (mkdir-p (dirname derivative-full-path)))
 	(if (not (file-exists? derivative-full-path))
 	    (apply system*
 		   (append (cons derivative-cmd
@@ -280,13 +296,44 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	     (all-folders (string-append base suffix)))))))
 
 (define (standard-page uri-path)
-  (as-html-reply
-   (with-standard-header
-    `(body
-      ,(path->selection-tree
-	image-dir
-	(or (normalize-path uri-path)
-	    (normalize-path '())))))))
+  (let ((path (or (normalize-path uri-path)
+		  (normalize-path '()))))
+    (as-html-reply
+     (with-standard-header
+      `(body
+	(div (@ (id "selection-tree"))
+	     ,(path->selection-tree image-dir path))
+	;; FIXME feature image
+	(div (@ (id "nav"))
+	     ,(make-thumbnail-gallery path))
+	)))))
+
+;; FIXME directory separators in paths are ending up percent-encoded.
+;; 'path' is assumed to be a relative path to an image file,
+;; with the image file name as the final member.
+(define (make-thumbnail-gallery path)
+  (let ((folder-name (string-join (drop-right path 1) "/"))
+	(selected-image-name (last path)))
+    (define* (li-for image-name #:optional selected)
+      `(li (a (@ (href ,(path->uri (maybe-prepend "" (append (drop-right path 1) (list image-name)))))
+		 ,@(if selected
+		       '((class "selected"))
+		       '()))
+	      ,(make-thumbnail folder-name image-name))))
+    (receive (prev-images-all
+	      selected-image
+	      next-images-all)
+	(pick-around/default (string-match-with? selected-image-name)
+			     (all-image-names folder-name))
+      (receive (prev-images
+		next-images
+		prev-images-remaining
+		next-images-remaining)
+	  (take-evenly prev-images-all next-images-all nav-n-thumbnails)
+	`(ul (@ (class "thumbnails gallery"))
+	     ,@(map li-for (reverse prev-images))
+	     ,(li-for selected-image 'selected)
+	     ,@(map li-for next-images))))))
 
 (define (folder-page uri-path)
   (let* ((folder-name (uri-decode (first uri-path)))
@@ -377,8 +424,10 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 (define (all-image-names folder-name)
   (sort
    (map basename
-	(filter is-image-file?
-		(all-files (string-append image-dir "/" folder-name))))
+	(filter
+	 (lambda (fname)
+	   (is-image-file? (string-append image-dir "/" folder-name "/" fname)))
+	 (all-files (string-append image-dir "/" folder-name))))
    string<?))
 
 (define (image-uri folder-name image-name)
