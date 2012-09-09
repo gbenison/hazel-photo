@@ -425,12 +425,13 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
       (p "All done!"
 	 (a (@ (href "/")) "Continue"))))))
 
+;; FIXME: use (backtrace) to get a backtrace from 'thunk'
 (define (with-error-handler thunk)
   (catch #t thunk
-    (lambda args
+    (lambda (key proc msg msg-args . rest)
       (values '((content-type . (text/plain)))
-	      (with-output-to-string
-		(lambda () (pretty-print args)))))))
+	      (let ((error-msg (apply format #f msg msg-args)))
+		(format #f "~s: ~s: ~s~%" proc key error-msg))))))
 
 (define (hazel-photo-handler request request-body)
   (with-error-handler
