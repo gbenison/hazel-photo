@@ -358,52 +358,6 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	    ,@(map li-for next-images))))
    path))
 
-(define (folder-page uri-path)
-  (let* ((folder-name (uri-decode (first uri-path)))
-	 (selected-image-name  (and (> (length uri-path) 1)
-				    (uri-decode (second uri-path))))
-	 (folder-path (string-append image-dir "/" folder-name)))
-    (define* (li-for image-name #:optional selected)
-      `(li (a (@ (href ,(path->uri (list "" folder-name image-name)))
-		 ,@(if selected
-		       '((class "selected"))
-		       '()))
-	      ,(make-thumbnail folder-name image-name))))
-    (if (not (and (file-exists? folder-path)
-		  (file-is-directory? folder-path)))
-	(folder-not-found-page uri-path)
-	(receive (prev-images-all
-		  selected-image
-		  next-images-all)
-	    (pick-around/default (string-match-with? selected-image-name)
-				 (all-image-names folder-name))
-	  (receive (prev-images
-		    next-images
-		    prev-images-remaining
-		    next-images-remaining)
-	      (take-evenly prev-images-all next-images-all nav-n-thumbnails)
-	    (as-html-reply
-	     (with-standard-header
-	      `(body
-		(div (@ (class "sidebar"))
-		     (h2 ,(car uri-path))
-		     ;; FIXME 'more remaining' marker??
-		     (ul (@ (class "thumbnails gallery"))
-			 ,@(map li-for (reverse prev-images))
-			 ,(li-for selected-image 'selected)
-			 ,@(map li-for next-images)))
-		(div (@ (class "featured"))
-		     (span
-		      ,@(if (null? prev-images)
-			    '()
-			    `((a (@ (href ,(path->uri (list "" folder-name (car prev-images)))))
-				 "<")))
-		      ,(img-element-for folder-name selected-image)
-		      ,@(if (null? next-images)
-			    '()
-			    `((a (@ (href ,(path->uri (list "" folder-name (car next-images)))))
-				 ">")))))))))))))
-
 (define (unknown-request)
   (as-html-reply
    (with-standard-header
@@ -453,13 +407,6 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	 (all-files (string-append image-dir "/" folder-name))))
    string<?))
 
-(define (image-uri folder-path image-name)
-  (string-append
-   image-server-base-url
-   (path->uri `("images"
-		,@folder-path
-		,(basename image-name)))))
-
 (define (img-element-for folder-path image-name)
   (let ((image-uri (ensure-feature folder-path image-name)))
     `(a (@ (href ,image-uri))
@@ -479,13 +426,6 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	   ,(folder->thumbnail-ul folder-name)
 	   (div (@ (class "expander")))))))
 
-(define (landing-page)
-  (as-html-reply
-   (with-standard-header
-    `(body
-      (ul (@ (class "folder-list"))
-	  ,(map image-folder->li (all-image-folders)))))))
-
 ;; Regenerate thumbnails and features for all images.
 (define (cache-all)
   (for-each
@@ -502,7 +442,6 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
       (p "All done!"
 	 (a (@ (href "/")) "Continue"))))))
 
-;; FIXME: use (backtrace) to get a backtrace from 'thunk'
 (define (with-error-handler thunk)
   (let ((bt ""))
     (catch #t thunk
