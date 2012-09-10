@@ -1,3 +1,23 @@
+/* main three-column layout. */
+
+div#featured {
+    margin-top:    0.1in;
+    text-align:    center;
+    margin-right:  2.3in;
+    margin-left:   2.1in;
+}
+
+#selection-tree {
+    float:        left;
+    width:        2.0in;
+}
+
+#thumbnails {
+    width:        2.2in;
+    float:        right;
+}
+
+
 .selected {
 /*   border:      4px red solid; */
     background:  #ffaaaa;
@@ -62,16 +82,10 @@ ul.gallery > li > a {
     font-size:   100%;
 }
 
-div.featured {
-    margin-top:    0.1in;
-    text-align:    center;
-    margin-right:  2.3in;
-}
-
-div.featured a {
-    padding:     10px;
+div#featured a {
+    padding:     5px;
     font-weight: bold;
-    font-size:   10em;
+    font-size:   6em;
     text-decoration: none;
     vertical-align: top;
 }

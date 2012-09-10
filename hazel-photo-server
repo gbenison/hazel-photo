@@ -303,10 +303,10 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
       `(body
 	(div (@ (id "selection-tree"))
 	     ,(path->selection-tree image-dir path))
+	(div (@ (id "thumbnails"))
+	     ,(make-thumbnail-gallery path))
 	(div (@ (id "featured"))
-	     ,(make-featured-image path))
-	(div (@ (id "nav"))
-	     ,(make-thumbnail-gallery path)))))))
+	     ,(make-featured-image path)))))))
 
 (define (make-featured-image path)
   (with-image-list
