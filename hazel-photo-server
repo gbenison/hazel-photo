@@ -239,16 +239,6 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
     `(body (p "Folder " ,path " does not exist.  Try one of these:")
 	   (ul ,(map image-folder->li (all-image-folders)))))))
 
-;
-; Folder selectors:
-; (a b) --> match (a b c' d') where c' and d' are the first legitimate choices
-;
-; 1) normalize path
-; 2) render path --
-;    + folder tree
-;    + gallery and featured image
-;
-
 ;; Returns a path (list of fnames) to an image file.
 ;;
 ;; If the supplied uri is shorter than a path to an image, it is extended by
@@ -287,7 +277,10 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	`(ul
 	  ,@(map
 	     (lambda (dir)
-	       `(li (a (@ (href ,(string-append suffix dir)))
+	       `(li ,@(if (equal? (car path) dir)
+			  '((@ (class "selected")))
+			  '())
+		    (a (@ (href ,(string-append suffix dir)))
 		       ,dir)
 		    ,@(if (equal? (car path) dir)
 			  (list (go (cdr path)
@@ -408,9 +401,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
    string<?))
 
 (define (img-element-for folder-path image-name)
-  (let ((image-uri (ensure-feature folder-path image-name)))
-    `(a (@ (href ,image-uri))
-	(img (@ (src ,image-uri))))))
+  `(a (@ (href ,((derivative-uri "images") folder-path image-name)))
+      (img (@ (src ,(ensure-feature folder-path image-name))))))
 
 (define (folder->thumbnail-ul folder-name)
   `(ul (@ (class "thumbnails gallery"))

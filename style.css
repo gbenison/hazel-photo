@@ -10,6 +10,16 @@ div#featured {
 #selection-tree {
     float:        left;
     width:        2.0in;
+    white-space:  nowrap;
+    overflow:     hidden;
+}
+
+#selection-tree:hover {
+    overflow:     visible;
+}
+
+#selection-tree li.selected {
+    border-left:       3px solid red;
 }
 
 #thumbnails {
@@ -17,8 +27,15 @@ div#featured {
     float:        right;
 }
 
+#selection-tree a {
+    text-decoration:  none;
+    color:            black;
+    font-family:      geneva, helvetica, sans-serif;
+    font-weight:      bold;
+    padding:          3px;
+}
 
-.selected {
+#thumbnails .selected {
 /*   border:      4px red solid; */
     background:  #ffaaaa;
 }
