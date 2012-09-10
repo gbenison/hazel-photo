@@ -200,9 +200,11 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
     (string-join (append path (list fname)) "/")))
 
 (define (all-folders base)
-  (filter (lambda (fname)
-	    (file-is-directory? (string-append base "/" fname)))
-	  (all-files base)))
+  (sort
+   (filter (lambda (fname)
+	     (file-is-directory? (string-append base "/" fname)))
+	   (all-files base))
+   string<?))
 
 (define (all-image-folders)
   (define (is-image-folder-name? fname)
@@ -401,7 +403,9 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
    string<?))
 
 (define (img-element-for folder-path image-name)
-  `(a (@ (href ,((derivative-uri "images") folder-path image-name)))
+  `(a (@ (href ,(string-append
+		 image-server-base-url
+		 (path->uri `("images" ,@folder-path ,image-name)))))
       (img (@ (src ,(ensure-feature folder-path image-name))))))
 
 (define (folder->thumbnail-ul folder-name)
