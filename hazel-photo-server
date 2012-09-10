@@ -306,12 +306,12 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
      `(span
        ,@(if (null? prev-images)
 	    '()
-	    `((a (@ (href ,(path->uri (list "" folder-name (car prev-images)))))
+	    `((a (@ (href ,(path->uri `("" ,@(drop-right path 1) ,(car prev-images)))))
 		 "<")))
        ,(img-element-for (drop-right path 1) selected-image)
        ,@(if (null? next-images)
 	     '()
-	     `((a (@ (href ,(path->uri (list "" folder-name (car next-images)))))
+	     `((a (@ (href ,(path->uri `("" ,@(drop-right path 1) ,(car next-images)))))
 		  ">")))))
    path))
 

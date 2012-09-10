@@ -15,6 +15,11 @@ div#featured {
     z-index:      -99;
 }
 
+#selection-tree ul {
+    padding-left: 10px;
+    margin-left:   0;
+}
+
 #selection-tree:hover {
     overflow:     visible;
     z-index:      99;
@@ -22,6 +27,7 @@ div#featured {
 
 #selection-tree li.selected {
     border-left:       3px solid red;
+    border-bottom:     3px solid red;
 }
 
 #thumbnails {
@@ -34,9 +40,11 @@ div#featured {
     color:            black;
     font-family:      geneva, helvetica, sans-serif;
     font-weight:      bold;
+    font-size:        80%;
     padding:          3px;
     position:         relative;    /* needed for z-index function */
     background-color: white;
+    display:          block;
 }
 
 #thumbnails .selected {
@@ -104,9 +112,9 @@ ul.gallery > li > a {
 }
 
 div#featured a {
-    padding:     5px;
+    padding:     2px;
     font-weight: bold;
-    font-size:   6em;
+    font-size:   4em;
     text-decoration: none;
     vertical-align: top;
 }
