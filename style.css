@@ -16,8 +16,9 @@ div#featured {
 }
 
 #selection-tree ul {
-    padding-left: 10px;
+    padding-left:  10px;
     margin-left:   0;
+    width:         3in;
 }
 
 #selection-tree:hover {
@@ -45,6 +46,7 @@ div#featured {
     position:         relative;    /* needed for z-index function */
     background-color: white;
     display:          block;
+    width:            100%;
 }
 
 #thumbnails .selected {
