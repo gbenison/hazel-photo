@@ -12,10 +12,12 @@ div#featured {
     width:        2.0in;
     white-space:  nowrap;
     overflow:     hidden;
+    z-index:      -99;
 }
 
 #selection-tree:hover {
     overflow:     visible;
+    z-index:      99;
 }
 
 #selection-tree li.selected {
@@ -33,6 +35,8 @@ div#featured {
     font-family:      geneva, helvetica, sans-serif;
     font-weight:      bold;
     padding:          3px;
+    position:         relative;    /* needed for z-index function */
+    background-color: white;
 }
 
 #thumbnails .selected {
