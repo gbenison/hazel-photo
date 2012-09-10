@@ -1,4 +1,55 @@
-.selected {
+/* main three-column layout. */
+
+div#featured {
+    margin-top:    0.1in;
+    text-align:    center;
+    margin-right:  2.3in;
+    margin-left:   2.1in;
+}
+
+#selection-tree {
+    float:        left;
+    width:        2.0in;
+    white-space:  nowrap;
+    overflow:     hidden;
+    z-index:      -99;
+}
+
+#selection-tree ul {
+    padding-left:  10px;
+    margin-left:   0;
+    width:         3in;
+}
+
+#selection-tree:hover {
+    overflow:     visible;
+    z-index:      99;
+}
+
+#selection-tree li.selected {
+    border-left:       3px solid red;
+    border-bottom:     3px solid red;
+}
+
+#thumbnails {
+    width:        2.2in;
+    float:        right;
+}
+
+#selection-tree a {
+    text-decoration:  none;
+    color:            black;
+    font-family:      geneva, helvetica, sans-serif;
+    font-weight:      bold;
+    font-size:        80%;
+    padding:          3px;
+    position:         relative;    /* needed for z-index function */
+    background-color: white;
+    display:          block;
+    width:            100%;
+}
+
+#thumbnails .selected {
 /*   border:      4px red solid; */
     background:  #ffaaaa;
 }
@@ -62,16 +113,10 @@ ul.gallery > li > a {
     font-size:   100%;
 }
 
-div.featured {
-    margin-top:    0.1in;
-    text-align:    center;
-    margin-right:  2.3in;
-}
-
-div.featured a {
-    padding:     10px;
+div#featured a {
+    padding:     2px;
     font-weight: bold;
-    font-size:   10em;
+    font-size:   4em;
     text-decoration: none;
     vertical-align: top;
 }
