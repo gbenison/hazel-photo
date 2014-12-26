@@ -131,11 +131,13 @@ div.sidebar {
     width: 2.2in;
 }
 
-#slideshow {
-    margin-left: 2.1in;
+#slideshow-link {
+    text-align: center;
 }
 
 #slideshow > div {
-    position: absolute;
+    position:     absolute;
+    text-align:   center;
+    margin-left:  4in;
 }
 

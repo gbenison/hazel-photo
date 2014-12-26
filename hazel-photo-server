@@ -298,7 +298,13 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	(div (@ (id "thumbnails"))
 	     ,(make-thumbnail-gallery path))
 	(div (@ (id "featured"))
-	     ,(make-featured-image path)))))))
+	     ,(make-featured-image path))
+	(div (@ (id "slideshow-link"))
+	     (a (@ (href ,(slideshow-link uri-path)))
+		"slideshow")))))))
+
+(define (slideshow-link uri-path)
+  (path->uri `("" "slideshow" ,@uri-path)))
 
 (define (slideshow-page uri-path)
   (let ((path (normalize-path uri-path)))
