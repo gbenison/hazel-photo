@@ -130,3 +130,12 @@ div.sidebar {
     float: right;
     width: 2.2in;
 }
+
+#slideshow {
+    margin-left: 2.1in;
+}
+
+#slideshow > div {
+    position: absolute;
+}
+
