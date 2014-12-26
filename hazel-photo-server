@@ -376,7 +376,11 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 (define (with-standard-header . body-elements)
   `(html
     (head (title "HazelPhoto 0.1")
-	  (link (@ (rel "stylesheet")
+	  (script (@ (src "https://code.jquery.com/jquery-1.11.2.min.js")) "")
+ 	  (script (@ (src ,(string-append
+ 			    image-server-base-url
+ 			    "hazel.js"))) "")
+ 	  (link (@ (rel "stylesheet")
 		   (type "text/css")
 		   (href ,(string-append image-server-base-url
 					 "style.css")))))
