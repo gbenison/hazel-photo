@@ -141,3 +141,7 @@ div.sidebar {
     margin-left:  4in;
 }
 
+#slideshow-play {
+    display:      none;
+}
+

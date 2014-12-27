@@ -314,7 +314,12 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	(div (@ (id "selection-tree"))
 	     ,(path->selection-tree image-dir path))
 	(div (@ (id "slideshow"))
-	     ,(slideshow path)))))))
+	     ,(slideshow path))
+	(div (@ (id "slideshow-control"))
+	     (a (@ (href "/") (id "slideshow-pause"))
+		(span (@ (class "fa fa-pause")) ""))
+	     (a (@ (href "/") (id "slideshow-play"))
+		(span (@ (class "fa fa-play")) ""))))))))
 
 (define (slideshow path)
   (with-image-list
@@ -322,12 +327,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
      `(,@(map
 	  (lambda (image)
 	    `(div ,(img-element-for (drop-right path 1) image)))
-	  prev-images)
-       (div ,(img-element-for (drop-right path 1) selected-image))
-       ,@(map
-	  (lambda (image)
-	    `(div ,(img-element-for (drop-right path 1) image)))
-	  next-images)))
+	  `(,@prev-images ,selected-image ,@next-images))))
    path))
 
 (define (make-featured-image path)
@@ -410,6 +410,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
  	  (script (@ (src ,(string-append
  			    image-server-base-url
  			    "hazel.js"))) "")
+	  (link (@ (rel "stylesheet")
+		   (href "//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css")))
  	  (link (@ (rel "stylesheet")
 		   (type "text/css")
 		   (href ,(string-append image-server-base-url
