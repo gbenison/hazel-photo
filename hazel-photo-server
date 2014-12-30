@@ -313,20 +313,24 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
       `(body
 	(div (@ (id "selection-tree"))
 	     ,(path->selection-tree image-dir path))
-	(div (@ (id "slideshow"))
-	     ,(slideshow path))
-	(div (@ (id "slideshow-control"))
-	     (a (@ (href "/") (id "slideshow-pause"))
-		(span (@ (class "fa fa-pause")) ""))
-	     (a (@ (href "/") (id "slideshow-play"))
-		(span (@ (class "fa fa-play")) ""))))))))
+	(div (@ (id "main"))
+	     (div (@ (id "slideshow"))
+		  ,(slideshow path))
+	     (div (@ (id "slideshow-control"))
+		  (a (@ (href "/") (id "slideshow-pause"))
+		     (span (@ (class "fa fa-pause")) ""))
+		  (a (@ (href "/") (id "slideshow-play"))
+		     (span (@ (class "fa fa-play")) "")))))))))
 
 (define (slideshow path)
   (with-image-list
    (lambda (prev-images next-images folder-name selected-image)
      `(,@(map
 	  (lambda (image)
-	    `(div ,(img-element-for (drop-right path 1) image)))
+	    `(div
+	      (div (@ (class "centering"))
+	       (div
+		,(img-element-for (drop-right path 1) image)))))
 	  `(,@prev-images ,selected-image ,@next-images))))
    path))
 
