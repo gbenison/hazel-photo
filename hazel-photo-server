@@ -185,6 +185,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   (ensure-derivative-image "thumbnails" '("-resize" "80x80")))
 (define ensure-feature
   (ensure-derivative-image "feature" '("-resize" "600x520>")))
+(define ensure-slide
+  (ensure-derivative-image "slide" '("-resize" "1000x860")))
 
 (define (make-thumbnail folder-path image-name)
   `(img (@ (src ,(ensure-thumbnail folder-path image-name)))))
@@ -330,7 +332,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	    `(div
 	      (div (@ (class "centering"))
 	       (div
-		,(img-element-for (drop-right path 1) image)))))
+		,(slide-img-element-for (drop-right path 1) image)))))
 	  `(,@prev-images ,selected-image ,@next-images))))
    path))
 
@@ -439,11 +441,15 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	 (all-files (string-append image-dir "/" folder-name))))
    string<?))
 
-(define (img-element-for folder-path image-name)
-  `(a (@ (href ,(string-append
-		 image-server-base-url
-		 (path->uri `("images" ,@folder-path ,image-name)))))
-      (img (@ (src ,(ensure-feature folder-path image-name))))))
+(define (image-element-generator image-path-generator)
+  (lambda (folder-path image-name)
+    `(a (@ (href ,(string-append
+		   image-server-base-url
+		   (path->uri `("images" ,@folder-path ,image-name)))))
+	(img (@ (src ,(image-path-generator folder-path image-name)))))))
+
+(define img-element-for (image-element-generator ensure-feature))
+(define slide-img-element-for (image-element-generator ensure-slide))
 
 (define (folder->thumbnail-ul folder-name)
   `(ul (@ (class "thumbnails gallery"))
@@ -475,6 +481,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 		(image-fname (last path*)))
 	   (begin
 	     (ensure-thumbnail path** image-fname)
+	     (ensure-slide     path** image-fname)
 	     (ensure-feature   path** image-fname)))))
    true ;; down
    true ;; up
