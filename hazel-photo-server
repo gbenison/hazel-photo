@@ -27,6 +27,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 
 (use-modules (srfi srfi-1)
 	     (sxml simple)
+	     (ice-9 rdelim)
 	     (ice-9 regex)
 	     (ice-9 pretty-print)
 	     (ice-9 receive)
@@ -269,12 +270,26 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 				 (cdr guide)
 				 (append accepted (list (car guide))))))))
 
+(define (path->sort-name path)
+  (let ((sort-file (string-append path "/" ".sortorder")))
+    (if (and (file-is-directory? path)
+	     (file-exists? sort-file))
+	(let* ((fh (open-file sort-file "r"))
+	       (first-line (read-line fh)))
+	  (close fh)
+	  first-line)
+	path)))
+
+(define (sort-directory<>? base)
+  (lambda (dir-a dir-b)
+    (string<? (path->sort-name (string-append base "/" dir-a))
+	      (path->sort-name (string-append base "/" dir-b)))))
+
 (define (path->selection-tree base path)
   (let go ((path path)
 	   (suffix "/"))
     (if (< (length path) 2)
 	'() ;; List of length 1 is just the image name
-	;; FIXME sort
 	`(ul
 	  ,@(map
 	     (lambda (dir)
@@ -287,7 +302,9 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 			  (list (go (cdr path)
 				    (string-append suffix (car path) "/")))
 			  '())))
-	     (all-folders (string-append base suffix)))))))
+	     (sort
+	      (all-folders (string-append base suffix))
+	      (sort-directory<>? (string-append base suffix))))))))
 
 (define (standard-page uri-path)
   (let ((path (or (normalize-path uri-path)
