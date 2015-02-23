@@ -185,6 +185,8 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
   (ensure-derivative-image "thumbnails" '("-resize" "80x80")))
 (define ensure-feature
   (ensure-derivative-image "feature" '("-resize" "600x520>")))
+(define ensure-slide
+  (ensure-derivative-image "slide" '("-resize" "1000x860")))
 
 (define (make-thumbnail folder-path image-name)
   `(img (@ (src ,(ensure-thumbnail folder-path image-name)))))
@@ -298,7 +300,41 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	(div (@ (id "thumbnails"))
 	     ,(make-thumbnail-gallery path))
 	(div (@ (id "featured"))
-	     ,(make-featured-image path)))))))
+	     ,(make-featured-image path))
+	(div (@ (id "slideshow-link"))
+	     (a (@ (href ,(slideshow-link uri-path)))
+		"slideshow")))))))
+
+(define (slideshow-link uri-path)
+  (path->uri `("" "slideshow" ,@uri-path)))
+
+(define (slideshow-page uri-path)
+  (let ((path (normalize-path uri-path)))
+    (as-html-reply
+     (with-standard-header
+      `(body
+	(div (@ (id "selection-tree"))
+	     ,(path->selection-tree image-dir path))
+	(div (@ (id "main"))
+	     (div (@ (id "slideshow"))
+		  ,(slideshow path))
+	     (div (@ (id "slideshow-control"))
+		  (a (@ (href "/") (id "slideshow-pause"))
+		     (span (@ (class "fa fa-pause")) ""))
+		  (a (@ (href "/") (id "slideshow-play"))
+		     (span (@ (class "fa fa-play")) "")))))))))
+
+(define (slideshow path)
+  (with-image-list
+   (lambda (prev-images next-images folder-name selected-image)
+     `(,@(map
+	  (lambda (image)
+	    `(div
+	      (div (@ (class "centering"))
+	       (div
+		,(slide-img-element-for (drop-right path 1) image)))))
+	  `(,@prev-images ,selected-image ,@next-images))))
+   path))
 
 (define (make-featured-image path)
   (with-image-list
@@ -375,8 +411,14 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 
 (define (with-standard-header . body-elements)
   `(html
-    (head (title "HazelPhoto 0.1")
+    (head (title "HazelPhoto 0.1-devel")
+	  (script (@ (src "https://code.jquery.com/jquery-1.11.2.min.js")) "")
+ 	  (script (@ (src ,(string-append
+ 			    image-server-base-url
+ 			    "hazel.js"))) "")
 	  (link (@ (rel "stylesheet")
+		   (href "//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css")))
+ 	  (link (@ (rel "stylesheet")
 		   (type "text/css")
 		   (href ,(string-append image-server-base-url
 					 "style.css")))))
@@ -399,11 +441,15 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 	 (all-files (string-append image-dir "/" folder-name))))
    string<?))
 
-(define (img-element-for folder-path image-name)
-  `(a (@ (href ,(string-append
-		 image-server-base-url
-		 (path->uri `("images" ,@folder-path ,image-name)))))
-      (img (@ (src ,(ensure-feature folder-path image-name))))))
+(define (image-element-generator image-path-generator)
+  (lambda (folder-path image-name)
+    `(a (@ (href ,(string-append
+		   image-server-base-url
+		   (path->uri `("images" ,@folder-path ,image-name)))))
+	(img (@ (src ,(image-path-generator folder-path image-name)))))))
+
+(define img-element-for (image-element-generator ensure-feature))
+(define slide-img-element-for (image-element-generator ensure-slide))
 
 (define (folder->thumbnail-ul folder-name)
   `(ul (@ (class "thumbnails gallery"))
@@ -435,6 +481,7 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
 		(image-fname (last path*)))
 	   (begin
 	     (ensure-thumbnail path** image-fname)
+	     (ensure-slide     path** image-fname)
 	     (ensure-feature   path** image-fname)))))
    true ;; down
    true ;; up
@@ -465,8 +512,11 @@ exec guile --listen -s $0 $@ 2>>guile-error.log
    (lambda ()
      (let ((uri-path (request-path-components request)))
        (cond
-	((equal? uri-path '("cache-all"))  (cache-all))
-	(else                              (standard-page uri-path)))))))
+	((equal? uri-path '("cache-all"))    (cache-all))
+	((and (> (length uri-path)  0)
+	      (equal? (car uri-path) "slideshow"))
+	 (slideshow-page (cdr uri-path)))
+	(else                                (standard-page uri-path)))))))
 
 (define (make-unix-socket fname)
   (let ((server-socket (socket PF_UNIX SOCK_STREAM 0)))

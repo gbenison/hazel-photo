@@ -130,3 +130,42 @@ div.sidebar {
     float: right;
     width: 2.2in;
 }
+
+#main {
+    margin-left: 2.1in;
+}
+
+#slideshow {
+    float:       left;
+    margin-left: 50%;
+}
+
+#slideshow-link {
+    text-align: center;
+}
+
+#slideshow > div {
+    float:  left;
+    width:  0px;
+}
+
+#slideshow-play {
+    display:      none;
+}
+
+div.centering {
+    float: left;
+}
+
+div.centering > div {
+    float:    left;
+    position: relative;
+    left:     -50%;
+}
+
+#slideshow-control {
+    float:      left;
+    width:      100%;
+    text-align: center;
+    margin-top: 0.2in;
+}
